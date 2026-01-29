@@ -51,27 +51,35 @@ Server (Node / Express)
 git clone https://github.com/your-org/easypost-embeddables-demo.git
 cd easypost-embeddables-demo
 ```
+
 2. Install dependencies
+
 ```
 npm install
 ```
+
 4. Set environment variables
+
 ```
 export EASYPOST_API_KEY="your_easypost_api_key"
 export ORIGIN_HOST="localhost"
 export PORT=5001
 ```
+
 ORIGIN_HOST must match the domain serving the client page (no protocol, no port).
 
 5. Start the server
+
 ```
 npm run start
 ```
+
 By default the demo runs at:
 
 http://localhost:5001
 
 🖥 Using the Demo
+
 - Open the app in your browser (http://localhost:5001)
 - Enter a valid sub-account user_id or select on from the dropdown menu
 - Click Initialize SDK
