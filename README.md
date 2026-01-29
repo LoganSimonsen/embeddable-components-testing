@@ -19,12 +19,17 @@ The demo allows integrators to launch EasyPost-hosted management UI (Billing, Ca
 ## 🧱 Architecture
 
 Browser
+
 └── Demo HTML page
+
 └── EasyPostEmbeddables SDK
+
 └── EasyPost-hosted iframe (Forge UI)
 
 Server (Node / Express)
+
 └── /api/easypost-embeddables/session
+
 └── Calls EasyPost EmbeddableSessions API
 
 ---
@@ -42,38 +47,39 @@ Server (Node / Express)
 
 ### 1. Clone the repo
 
-```bash
+```
 git clone https://github.com/your-org/easypost-embeddables-demo.git
 cd easypost-embeddables-demo
+```
 2. Install dependencies
+```
 npm install
-3. Set environment variables
+```
+4. Set environment variables
+```
 export EASYPOST_API_KEY="your_easypost_api_key"
 export ORIGIN_HOST="localhost"
 export PORT=5001
+```
 ORIGIN_HOST must match the domain serving the client page (no protocol, no port).
 
-4. Start the server
+5. Start the server
+```
 npm run start
+```
 By default the demo runs at:
 
 http://localhost:5001
+
 🖥 Using the Demo
-Open the app in your browser
-
-Enter a valid sub-account user_id
-
-Click Initialize SDK
-
-Open any embeddable:
-
-Manage Billing
-
-Manage Carriers
-
-Payment Logs
-
-Reports
+- Open the app in your browser (http://localhost:5001)
+- Enter a valid sub-account user_id or select on from the dropdown menu
+- Click Initialize SDK
+- Open any embeddable:
+  - Manage Billing (only works with decentralized forge accounts)
+  - Manage Carriers
+  - Payment Logs (only works with decentralized forge accounts)
+  - Reports (only works with decentralized forge accounts)
 
 Each embeddable launches inside an EasyPost-hosted iframe.
 
@@ -100,4 +106,3 @@ Session refreshing is handled automatically by EasyPost
 The demo intentionally keeps logic minimal for clarity
 
 Intended for internal demos, testing, and reference implementations
-```
