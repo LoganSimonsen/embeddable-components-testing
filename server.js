@@ -1,46 +1,58 @@
-/**
- * Demo server for EasyPost Embeddables
- *
- * Run:
- *   EASYPOST_API_KEY=... ORIGIN_HOST=localhost PORT=5000 node server.js
- *
- * Notes:
- * - origin_host must be a bare host (no protocol, no subdomains per your guide)
- * - user_id should be the EasyPost User ID of the sub-account
- */
-
 import express from "express";
-import cors from "cors";
+import path from "path";
+import { fileURLToPath } from "url";
 
 const app = express();
+
 app.use(express.json());
 
-// For local dev, allow your frontend origin.
-// If you serve the static HTML from the same server, you can remove cors().
-app.use(cors());
+const __filename = fileURLToPath(import.meta.url);
+const __dirname = path.dirname(__filename);
 
-const EASYPOST_API_KEY = process.env.EASYPOST_API_KEY;
+// ---- Config ----
+const EASYPOST_API_KEY = process.env.EASYPOST_API_KEY || "";
+const ORIGIN_HOST = process.env.ORIGIN_HOST || "localhost";
+const PORT = Number(process.env.PORT || 5001);
+
 if (!EASYPOST_API_KEY) {
-  console.error("Missing EASYPOST_API_KEY env var");
-  process.exit(1);
+  console.warn("⚠️  Missing EASYPOST_API_KEY env var.");
 }
 
-// IMPORTANT: For local dev, this is typically "localhost".
-// In production, this should be your real domain in bare-host format (example.com).
-const ORIGIN_HOST = process.env.ORIGIN_HOST || "localhost";
-const PORT = process.env.PORT || 5000;
+// Serve static files (expects index.html under ./public)
+app.use(express.static(path.join(__dirname, "public")));
 
-/**
- * POST /api/easypost-embeddables/session
- * Body: { user_id: "user_..." }
- *
- * Returns: { session_id: "..." , ... }
- */
+// Small helper for consistent error payloads
+function sendError(res, status, code, message, details = undefined) {
+  res.status(status).json({
+    error: {
+      code,
+      message,
+      ...(details ? { details } : {}),
+    },
+  });
+}
+
+// ---- EasyPost: Create embeddables session ----
+// Docs: POST https://api.easypost.com/v2/embeddables/session (from your guide)
 app.post("/api/easypost-embeddables/session", async (req, res) => {
   try {
+    if (!EASYPOST_API_KEY) {
+      return sendError(
+        res,
+        500,
+        "missing_api_key",
+        "EASYPOST_API_KEY is not set",
+      );
+    }
+
     const { user_id } = req.body || {};
     if (!user_id) {
-      return res.status(400).json({ error: "Missing required field: user_id" });
+      return sendError(
+        res,
+        400,
+        "missing_user_id",
+        "Missing required field: user_id",
+      );
     }
 
     const payload = {
@@ -48,21 +60,20 @@ app.post("/api/easypost-embeddables/session", async (req, res) => {
       origin_host: ORIGIN_HOST,
     };
 
-    const response = await fetch(
+    const resp = await fetch(
       "https://api.easypost.com/v2/embeddables/session",
       {
         method: "POST",
         headers: {
-          "Content-Type": "application/json",
-          // Basic Auth: username = API key, password empty
           Authorization:
             "Basic " + Buffer.from(`${EASYPOST_API_KEY}:`).toString("base64"),
+          "Content-Type": "application/json",
         },
         body: JSON.stringify(payload),
       },
     );
 
-    const text = await response.text();
+    const text = await resp.text();
     let data;
     try {
       data = JSON.parse(text);
@@ -70,30 +81,121 @@ app.post("/api/easypost-embeddables/session", async (req, res) => {
       data = { raw: text };
     }
 
-    if (!response.ok) {
-      return res.status(response.status).json({
-        error: "EasyPost embeddables session request failed",
-        status: response.status,
-        details: data,
-      });
+    if (!resp.ok) {
+      return sendError(
+        res,
+        resp.status,
+        "easypost_error",
+        "EasyPost embeddables session request failed",
+        data,
+      );
     }
 
     return res.json(data);
   } catch (err) {
-    console.error(err);
-    return res
-      .status(500)
-      .json({ error: "Server error", details: String(err?.message || err) });
+    console.error("Session endpoint error:", err);
+    return sendError(
+      res,
+      500,
+      "server_error",
+      "Unexpected server error",
+      String(err),
+    );
   }
 });
 
-/**
- * Optional: serve the static demo UI from the same server.
- * Put index.html in a "public" folder.
- */
-app.use(express.static("public"));
+// ---- EasyPost: Retrieve ALL child users ----
+// Docs: GET /v2/users/children with page_size + after_id; response { children: [...], has_more: bool } :contentReference[oaicite:1]{index=1}
+async function fetchAllChildUsers() {
+  const all = [];
+  let after_id = undefined;
+  const page_size = 100;
+
+  for (let i = 0; i < 1000; i++) {
+    const url = new URL("https://api.easypost.com/v2/users/children");
+    url.searchParams.set("page_size", String(page_size));
+    if (after_id) url.searchParams.set("after_id", after_id);
+
+    const resp = await fetch(url.toString(), {
+      method: "GET",
+      headers: {
+        Authorization:
+          "Basic " + Buffer.from(`${EASYPOST_API_KEY}:`).toString("base64"),
+      },
+    });
+
+    const text = await resp.text();
+    let data;
+    try {
+      data = JSON.parse(text);
+    } catch {
+      data = { raw: text };
+    }
+
+    if (!resp.ok) {
+      const error = new Error("EasyPost child-users request failed");
+      error.status = resp.status;
+      error.details = data;
+      throw error;
+    }
+
+    const children = Array.isArray(data?.children) ? data.children : [];
+    all.push(...children);
+
+    if (!data?.has_more || children.length === 0) break;
+
+    // Pagination: use the last returned child's id as after_id :contentReference[oaicite:2]{index=2}
+    after_id = children[children.length - 1]?.id;
+    if (!after_id) break;
+  }
+
+  return all;
+}
+
+app.get("/api/easypost-embeddables/child-users", async (req, res) => {
+  try {
+    if (!EASYPOST_API_KEY) {
+      return sendError(
+        res,
+        500,
+        "missing_api_key",
+        "EASYPOST_API_KEY is not set",
+      );
+    }
+
+    const children = await fetchAllChildUsers();
+
+    // Return a trimmed shape for the UI (keep full object server-side if you want)
+    const items = children.map((u) => ({
+      id: u.id,
+      name: u.name || "",
+      created_at: u.created_at || "",
+      verified: u.verified,
+    }));
+
+    return res.json({
+      count: items.length,
+      children: items,
+    });
+  } catch (err) {
+    console.error("Child users endpoint error:", err);
+    const status = err?.status || 500;
+    return sendError(
+      res,
+      status,
+      "easypost_error",
+      "Failed to retrieve child users",
+      err?.details || String(err),
+    );
+  }
+});
+
+// Fallback: serve index.html for root
+app.get("/", (_req, res) => {
+  res.sendFile(path.join(__dirname, "public", "index.html"));
+});
 
 app.listen(PORT, () => {
-  console.log(`Demo server running on http://localhost:${PORT}`);
-  console.log(`ORIGIN_HOST=${ORIGIN_HOST}`);
+  console.log(`✅ Server listening on http://localhost:${PORT}`);
+  console.log(`   ORIGIN_HOST=${ORIGIN_HOST}`);
 });

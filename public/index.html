@@ -19,13 +19,13 @@
         border: 1px solid #ddd;
         border-radius: 12px;
         padding: 16px;
-        max-width: 900px;
+        max-width: 980px;
       }
       .row {
         display: flex;
         gap: 12px;
         flex-wrap: wrap;
-        align-items: center;
+        align-items: end;
       }
       button {
         padding: 10px 14px;
@@ -46,7 +46,7 @@
         padding: 10px 12px;
         border-radius: 10px;
         border: 1px solid #ccc;
-        min-width: 340px;
+        min-width: 360px;
       }
       .muted {
         color: #666;
@@ -61,39 +61,65 @@
         padding: 12px;
         border-radius: 12px;
       }
+      .field {
+        display: flex;
+        flex-direction: column;
+        gap: 6px;
+      }
+      .field label {
+        font-size: 14px;
+        color: #444;
+      }
+      code {
+        font-family: ui-monospace, SFMono-Regular, Menlo, monospace;
+      }
     </style>
   </head>
+
   <body>
     <h1>EasyPost Embeddables Demo</h1>
 
     <div class="card">
       <div class="row">
-        <label>
-          <div class="muted">Sub-account user_id</div>
-          <input id="userId" placeholder='e.g. "user_123..."' />
-        </label>
+        <div class="field">
+          <label class="muted">Child Users (from Production API key)</label>
+          <select id="childUserSelect" disabled>
+            <option value="">Loading child users…</option>
+          </select>
+        </div>
 
-        <button id="btnInit" class="primary">Initialize SDK</button>
+        <button id="btnRefreshUsers">Refresh Users</button>
 
-        <button id="btnTheme">Toggle Theme</button>
+        <button id="btnInit" class="primary" disabled>Initialize SDK</button>
+        <button id="btnTheme" disabled>Toggle Theme</button>
+      </div>
+
+      <div class="row" style="margin-top: 12px">
+        <div class="field">
+          <label class="muted">Manual user_id (optional fallback)</label>
+          <input id="manualUserId" placeholder="e.g. user_123..." />
+        </div>
+
+        <button id="btnUseManual">Use Manual user_id</button>
       </div>
 
       <p class="muted" style="margin-top: 10px">
-        This demo calls <code>/api/easypost-embeddables/session</code> to mint a
-        short-lived <code>session_id</code>. The EasyPost modal is opened from
-        EasyPost-hosted iframes.
+        This demo calls <code>/api/easypost-embeddables/child-users</code> to
+        list child users, then calls
+        <code>/api/easypost-embeddables/session</code> to mint a short-lived
+        <code>session_id</code>.
       </p>
 
       <hr style="border: none; border-top: 1px solid #eee; margin: 16px 0" />
 
       <div class="row">
         <button id="button-billing" disabled>Manage Billing</button>
-        <button id="button-carriers" disabled>Manage Carriers</button>
+        <button id="button-carriers">Manage Carriers</button>
         <button id="button-payment-logs" disabled>Payment Logs</button>
         <button id="button-reports" disabled>Reports</button>
       </div>
 
-      <div id="log" class="log">Log:\n</div>
+      <div id="log" class="log">Log:</div>
     </div>
 
     <!-- Load EasyPost Embeddables -->
@@ -103,6 +129,9 @@
     ></script>
 
     <script>
+      // -----------------------------
+      // Logging
+      // -----------------------------
       const logEl = document.getElementById("log");
       const log = (...args) => {
         logEl.textContent +=
@@ -113,118 +142,25 @@
             .join(" ") + "\n";
       };
 
-      const state = {
-        embeddables: null,
-        dark: false,
-      };
+      // -----------------------------
+      // State (declare ONCE)
+      // -----------------------------
+      let embeddables = null;
+      let dark = false;
 
-      // --- Robust backdrop (blue tint) fixer ---
-      function isMostlyFullscreen(el) {
-        const r = el.getBoundingClientRect();
-        return (
-          r.width >= window.innerWidth - 8 && r.height >= window.innerHeight - 8
-        );
-      }
+      // Selected user_id from dropdown/manual
+      let selectedUserId = "";
 
-      function bgIsVisible(bg) {
-        if (!bg) return false;
-        if (bg === "transparent") return false;
-        // rgba(0, 0, 0, 0) etc.
-        if (bg.startsWith("rgba")) {
-          const m = bg.match(
-            /rgba\(\s*\d+\s*,\s*\d+\s*,\s*\d+\s*,\s*([0-9.]+)\s*\)/i,
-          );
-          if (m && Number(m[1]) === 0) return false;
-        }
-        return true;
-      }
+      // user_id currently bound to the live embeddables instance/session
+      let activeUserId = "";
 
-      function fixBackdrop(backdropColor = "rgba(0,0,0,0.35)") {
-        const iframe = document.querySelector(
-          'iframe[src*="embed.easypost.com"]',
-        );
-        if (!iframe) return false;
+      const childUserSelect = document.getElementById("childUserSelect");
+      const btnInit = document.getElementById("btnInit");
+      const btnTheme = document.getElementById("btnTheme");
 
-        // Scan *all* elements (not just body children) for a fullscreen fixed overlay.
-        const all = Array.from(document.querySelectorAll("body *"));
-
-        // Filter down to likely overlay candidates
-        const candidates = all
-          .filter((el) => {
-            const cs = getComputedStyle(el);
-            if (cs.position !== "fixed") return false;
-            if (!isMostlyFullscreen(el)) return false;
-            if (!bgIsVisible(cs.backgroundColor)) return false;
-
-            // Must not be the modal container (exclude anything containing the iframe)
-            if (
-              el.querySelector &&
-              el.querySelector('iframe[src*="embed.easypost.com"]')
-            )
-              return false;
-
-            return true;
-          })
-          .map((el) => {
-            const cs = getComputedStyle(el);
-            const z = Number.isFinite(parseInt(cs.zIndex, 10))
-              ? parseInt(cs.zIndex, 10)
-              : 0;
-            return { el, z, bg: cs.backgroundColor };
-          });
-
-        if (!candidates.length) return false;
-
-        // Choose the top-most overlay by z-index (most likely the scrim)
-        candidates.sort((a, b) => b.z - a.z);
-        const overlay = candidates[0].el;
-
-        overlay.style.background = backdropColor;
-        overlay.style.backdropFilter = "none";
-        overlay.style.webkitBackdropFilter = "none";
-
-        return true;
-      }
-
-      async function openEmbeddable(type) {
-        await state.embeddables.open(type);
-
-        // Try several times over ~1.5s while the modal mounts/animates
-        const times = [0, 50, 150, 300, 600, 1000, 1500];
-        times.forEach((t) =>
-          setTimeout(() => fixBackdrop("rgba(0,0,0,0.35)"), t),
-        );
-      }
-
-      // Call your backend to create a session for the selected sub-account
-      const fetchSessionId = async () => {
-        const user_id = document.getElementById("userId").value.trim();
-        if (!user_id) {
-          log("❌ Missing user_id");
-          return null;
-        }
-
-        try {
-          const resp = await fetch("/api/easypost-embeddables/session", {
-            method: "POST",
-            headers: { "Content-Type": "application/json" },
-            body: JSON.stringify({ user_id }),
-          });
-
-          const data = await resp.json();
-          if (!resp.ok) {
-            log("❌ Session request failed:", data);
-            return null;
-          }
-
-          log("✅ Got session_id:", data.session_id);
-          return data.session_id;
-        } catch (e) {
-          log("❌ Network error:", String(e));
-          return null;
-        }
-      };
-
+      // -----------------------------
+      // UI helpers
+      // -----------------------------
       const setButtonsEnabled = (enabled) => {
         [
           "button-billing",
@@ -234,89 +170,283 @@
         ].forEach((id) => {
           document.getElementById(id).disabled = !enabled;
         });
+        btnTheme.disabled = !enabled;
       };
 
-      const makeTheme = (dark) => {
-        return {
-          tokens: dark
-            ? {
-                "color.neutral.000": { value: "#0b0f1a" },
-                "color.neutral.900": { value: "#ffffff" },
-                "color.primary.500": { value: "#9F39EE" },
-                "font.family": { value: 'Poppins, "Poppins Fallback"' },
-              }
-            : {
-                "color.neutral.000": { value: "#FFFFFF" },
-                "color.neutral.900": { value: "#000000" },
-                "color.primary.500": { value: "#164DFF" },
-                "font.family": { value: 'Poppins, "Poppins Fallback"' },
-              },
-          modalZIndex: "123456",
-        };
+      const updateInitEnabled = () => {
+        const hasUser = Boolean(selectedUserId);
+        btnInit.disabled = !hasUser;
       };
 
+      const resetEmbeddables = () => {
+        if (embeddables?.destroy) {
+          try {
+            embeddables.destroy();
+          } catch (e) {
+            // best-effort teardown
+          }
+        }
+        embeddables = null;
+        activeUserId = "";
+        setButtonsEnabled(false);
+        updateInitEnabled();
+        log("🔁 Reset embeddables (user changed). Click Initialize SDK again.");
+      };
+
+      const openComponent = async (type) => {
+        if (!embeddables) {
+          log("ℹ️ Initialize the SDK first.");
+          return;
+        }
+        if (selectedUserId !== activeUserId) {
+          log(
+            "⚠️ User changed. Re-initialize the SDK to load the new child user.",
+          );
+          return;
+        }
+        try {
+          await embeddables.open(type);
+        } catch (e) {
+          log("❌ Failed to open component:", e?.message || String(e));
+        }
+      };
+
+      // -----------------------------
+      // Theme
+      // -----------------------------
+      const getAppearance = () => ({
+        tokens: dark
+          ? {
+              "font.family": "calibri, sans-serif",
+              "color.neutral.000": "#1f2937",
+              "color.neutral.900": "#ffffff",
+            }
+          : {
+              "font.family": "calibri, sans-serif",
+              "color.neutral.000": "#ffffff",
+            },
+        modalZIndex: "123456",
+      });
+
+      // -----------------------------
+      // Data loading: child users
+      // -----------------------------
+      const loadChildUsers = async () => {
+        childUserSelect.disabled = true;
+        childUserSelect.innerHTML = `<option value="">Loading child users…</option>`;
+
+        // Clear selection state until a user is chosen
+        selectedUserId = "";
+        updateInitEnabled();
+
+        try {
+          const resp = await fetch("/api/easypost-embeddables/child-users");
+          const data = await resp.json();
+
+          if (!resp.ok) {
+            log("❌ Failed to load child users:", data);
+            childUserSelect.innerHTML = `<option value="">Failed to load users</option>`;
+            return;
+          }
+
+          const children = Array.isArray(data?.children) ? data.children : [];
+          if (children.length === 0) {
+            childUserSelect.innerHTML = `<option value="">No child users found</option>`;
+            log("ℹ️ No child users returned for this API key.");
+            return;
+          }
+
+          childUserSelect.innerHTML = `<option value="">Select a child user…</option>`;
+          for (const u of children) {
+            const label = u.name ? `${u.name} (${u.id})` : u.id;
+            const opt = document.createElement("option");
+            opt.value = u.id;
+            opt.textContent = label;
+            childUserSelect.appendChild(opt);
+          }
+
+          childUserSelect.disabled = false;
+          log(`✅ Loaded ${children.length} child users.`);
+        } catch (e) {
+          log("❌ Network error loading child users:", String(e));
+          childUserSelect.innerHTML = `<option value="">Failed to load users</option>`;
+        }
+      };
+
+      // -----------------------------
+      // Session creation for selected child
+      // -----------------------------
+      const fetchSessionId = async () => {
+        if (!selectedUserId) {
+          log("❌ Missing selected user_id");
+          return null;
+        }
+
+        try {
+          const response = await fetch("/api/easypost-embeddables/session", {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({ user_id: selectedUserId }),
+          });
+
+          const data = await response.json();
+
+          if (!response.ok) {
+            log("❌ Session request failed:", data);
+            return null;
+          }
+
+          log("✅ Got session_id:", data.session_id);
+          return data.session_id;
+        } catch (error) {
+          console.error(
+            "[EasyPostEmbeddables] Failed to fetch session ID:",
+            error,
+          );
+          log(
+            "❌ Failed to fetch session ID:",
+            error?.message || String(error),
+          );
+          return null;
+        }
+      };
+
+      // -----------------------------
+      // Wire UI
+      // -----------------------------
+      document
+        .getElementById("btnRefreshUsers")
+        .addEventListener("click", async () => {
+          await loadChildUsers();
+        });
+
+      childUserSelect.addEventListener("change", () => {
+        const next = childUserSelect.value || "";
+        if (!next) {
+          selectedUserId = "";
+          updateInitEnabled();
+          return;
+        }
+
+        // If the SDK is already initialized for a different child, reset it.
+        if (embeddables && activeUserId && next !== activeUserId) {
+          selectedUserId = next;
+          log("👤 Selected user_id:", selectedUserId);
+          resetEmbeddables();
+          return;
+        }
+
+        selectedUserId = next;
+        log("👤 Selected user_id:", selectedUserId);
+        updateInitEnabled();
+      });
+
+      document.getElementById("btnUseManual").addEventListener("click", () => {
+        const manual = document.getElementById("manualUserId").value.trim();
+        if (!manual) {
+          log("❌ Manual user_id is empty.");
+          return;
+        }
+
+        // If switching away from the currently active user, reset the SDK.
+        if (embeddables && activeUserId && manual !== activeUserId) {
+          selectedUserId = manual;
+          log("👤 Using manual user_id:", selectedUserId);
+          resetEmbeddables();
+          return;
+        }
+
+        selectedUserId = manual;
+        log("👤 Using manual user_id:", selectedUserId);
+        updateInitEnabled();
+      });
+
+      // -----------------------------
+      // EasyPost Embeddables SDK
+      // -----------------------------
       window.EasyPostEmbeddables = window.EasyPostEmbeddables || {};
       window.EasyPostEmbeddables.onLoad = () => {
         log("EasyPost Embeddables script loaded.");
 
-        document
-          .getElementById("btnInit")
-          .addEventListener("click", async () => {
-            if (!window.EasyPostEmbeddables?.init) {
-              log("❌ SDK not available yet.");
-              return;
-            }
+        btnInit.addEventListener("click", async () => {
+          if (!selectedUserId) {
+            log("❌ Select a child user first.");
+            return;
+          }
 
-            state.embeddables = window.EasyPostEmbeddables.init({
-              fetchSessionId,
-              fonts: [
-                {
-                  cssSrc:
-                    "https://fonts.googleapis.com/css2?family=Zen+Dots&display=swap",
-                },
-              ],
-              appearance: makeTheme(state.dark),
-            });
-
-            log("✅ SDK initialized.");
+          // If already initialized for this user, don't re-init.
+          if (embeddables && activeUserId === selectedUserId) {
+            log("ℹ️ SDK already initialized for this user.");
             setButtonsEnabled(true);
+            return;
+          }
+
+          // If initialized for another user, reset and continue
+          if (embeddables && activeUserId && activeUserId !== selectedUserId) {
+            resetEmbeddables();
+          }
+
+          if (!window.EasyPostEmbeddables?.init) {
+            log("❌ SDK not available yet.");
+            return;
+          }
+
+          embeddables = window.EasyPostEmbeddables.init({
+            fetchSessionId,
+            fonts: [
+              {
+                cssSrc:
+                  "https://fonts.googleapis.com/css2?family=Zen+Dots&display=swap",
+              },
+            ],
+            appearance: getAppearance(),
           });
 
-        document
-          .getElementById("btnTheme")
-          .addEventListener("click", async () => {
-            if (!state.embeddables) {
-              log("ℹ️ Initialize the SDK first.");
-              return;
-            }
-            state.dark = !state.dark;
-            await state.embeddables.update({
-              appearance: makeTheme(state.dark),
-            });
-            log("🎨 Theme updated. dark =", state.dark);
-          });
+          activeUserId = selectedUserId;
+          log("✅ SDK initialized.");
+          log("🔒 Embeddables bound to user_id:", activeUserId);
+
+          setButtonsEnabled(true);
+        });
+
+        btnTheme.addEventListener("click", async () => {
+          if (!embeddables) {
+            log("ℹ️ Initialize the SDK first.");
+            return;
+          }
+          dark = !dark;
+          await embeddables.update({ appearance: getAppearance() });
+          log("🎨 Theme toggled. dark =", dark);
+        });
 
         document
           .getElementById("button-billing")
           .addEventListener("click", async () => {
-            await openEmbeddable("manage-billing");
+            await openComponent("manage-billing");
           });
         document
           .getElementById("button-carriers")
           .addEventListener("click", async () => {
-            await openEmbeddable("manage-carriers");
+            await openComponent("manage-carriers");
           });
         document
           .getElementById("button-payment-logs")
           .addEventListener("click", async () => {
-            await openEmbeddable("manage-payment-logs");
+            await openComponent("manage-payment-logs");
           });
         document
           .getElementById("button-reports")
           .addEventListener("click", async () => {
-            await openEmbeddable("manage-reports");
+            await openComponent("manage-reports");
           });
       };
+
+      // -----------------------------
+      // Initial load
+      // -----------------------------
+      setButtonsEnabled(false);
+      updateInitEnabled();
+      loadChildUsers();
     </script>
   </body>
 </html>
