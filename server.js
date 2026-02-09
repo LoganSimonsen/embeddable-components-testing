@@ -22,7 +22,7 @@ const DEMO_REFERRAL_CUSTOMERS = [
     id: "user_691914eabdf8499e9c29a49303da267a",
     object: "User",
     parent_id: null,
-    name: "Logan's Referral User #1",
+    name: "Demo Shipper #1",
     phone_number: "8018675309",
     verified: true,
     created_at: "2025-09-09T17:19:12Z",
