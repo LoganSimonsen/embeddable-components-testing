@@ -1,125 +1,579 @@
 <!doctype html>
-<html>
+<html lang="en">
   <head>
     <meta charset="utf-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1" />
-    <title>EasyPost Embeddables Demo</title>
+    <title>AcmeShip Partner Portal — Shipping Settings</title>
+
     <style>
+      :root {
+        --bg: #0b1020;
+        --panel: #0f172a;
+        --panel2: #111c36;
+        --card: #0b1226;
+        --border: rgba(255, 255, 255, 0.1);
+        --text: rgba(255, 255, 255, 0.92);
+        --muted: rgba(255, 255, 255, 0.68);
+        --muted2: rgba(255, 255, 255, 0.56);
+        --brand: #164dff;
+        --brand2: #9f39ee;
+        --good: #22c55e;
+        --warn: #f59e0b;
+        --bad: #fb5c59;
+        --shadow: 0 14px 45px rgba(0, 0, 0, 0.35);
+        --radius: 16px;
+        --radius2: 12px;
+        --font: system-ui, -apple-system, Segoe UI, Roboto, Arial, sans-serif;
+        --mono: ui-monospace, SFMono-Regular, Menlo, monospace;
+      }
+
+      * {
+        box-sizing: border-box;
+      }
+      html,
       body {
-        font-family:
-          system-ui,
-          -apple-system,
-          Segoe UI,
-          Roboto,
-          Arial,
-          sans-serif;
-        margin: 24px;
+        height: 100%;
       }
-      .card {
-        border: 1px solid #ddd;
+      body {
+        margin: 0;
+        font-family: var(--font);
+        background:
+          radial-gradient(
+            1000px 600px at 25% 0%,
+            rgba(22, 77, 255, 0.2),
+            transparent 60%
+          ),
+          radial-gradient(
+            900px 500px at 75% 15%,
+            rgba(159, 57, 238, 0.14),
+            transparent 55%
+          ),
+          var(--bg);
+        color: var(--text);
+      }
+
+      /* Layout */
+      .app {
+        display: grid;
+        grid-template-columns: 280px 1fr;
+        grid-template-rows: 64px 1fr;
+        grid-template-areas:
+          "sidebar topbar"
+          "sidebar main";
+        min-height: 100vh;
+      }
+
+      .topbar {
+        grid-area: topbar;
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+        padding: 0 22px;
+        border-bottom: 1px solid var(--border);
+        background: rgba(15, 23, 42, 0.65);
+        backdrop-filter: blur(10px);
+      }
+
+      .brand {
+        display: flex;
+        align-items: center;
+        gap: 10px;
+        font-weight: 700;
+        letter-spacing: 0.2px;
+      }
+
+      .brand-badge {
+        width: 34px;
+        height: 34px;
+        border-radius: 10px;
+        background: linear-gradient(135deg, var(--brand), var(--brand2));
+        box-shadow: 0 10px 28px rgba(22, 77, 255, 0.25);
+      }
+
+      .top-actions {
+        display: flex;
+        align-items: center;
+        gap: 10px;
+      }
+
+      .pill {
+        display: inline-flex;
+        align-items: center;
+        gap: 8px;
+        padding: 8px 10px;
+        border: 1px solid var(--border);
+        border-radius: 999px;
+        background: rgba(255, 255, 255, 0.04);
+        color: var(--muted);
+        font-size: 13px;
+      }
+
+      .dot {
+        width: 8px;
+        height: 8px;
+        border-radius: 999px;
+        background: var(--warn);
+      }
+      .dot.good {
+        background: var(--good);
+      }
+      .dot.bad {
+        background: var(--bad);
+      }
+
+      .sidebar {
+        grid-area: sidebar;
+        padding: 18px;
+        border-right: 1px solid var(--border);
+        background: rgba(15, 23, 42, 0.72);
+        backdrop-filter: blur(10px);
+      }
+
+      .sidebar .section-title {
+        margin: 18px 10px 8px;
+        font-size: 12px;
+        text-transform: uppercase;
+        letter-spacing: 0.12em;
+        color: var(--muted2);
+      }
+
+      .nav {
+        display: flex;
+        flex-direction: column;
+        gap: 6px;
+        margin-top: 10px;
+      }
+
+      .nav a {
+        display: flex;
+        align-items: center;
+        gap: 10px;
+        padding: 10px 12px;
         border-radius: 12px;
-        padding: 16px;
-        max-width: 980px;
+        color: var(--muted);
+        text-decoration: none;
+        border: 1px solid transparent;
       }
+
+      .nav a:hover {
+        background: rgba(255, 255, 255, 0.06);
+        color: var(--text);
+      }
+
+      .nav a.active {
+        background: rgba(22, 77, 255, 0.14);
+        border-color: rgba(22, 77, 255, 0.25);
+        color: var(--text);
+      }
+
+      .icon {
+        width: 18px;
+        height: 18px;
+        display: inline-grid;
+        place-items: center;
+        border-radius: 6px;
+        background: rgba(255, 255, 255, 0.06);
+        border: 1px solid rgba(255, 255, 255, 0.08);
+        font-size: 12px;
+      }
+
+      .main {
+        grid-area: main;
+        padding: 22px;
+      }
+
+      .container {
+        max-width: 1100px;
+        margin: 0 auto;
+      }
+
+      /* Cards & UI */
+      .page-title {
+        margin: 0 0 6px;
+        font-size: 22px;
+        letter-spacing: 0.2px;
+      }
+
+      .subtitle {
+        margin: 0 0 18px;
+        color: var(--muted);
+        font-size: 14px;
+        line-height: 1.5;
+      }
+
+      .grid {
+        display: grid;
+        grid-template-columns: 1.2fr 0.8fr;
+        gap: 14px;
+        align-items: start;
+      }
+
+      .card {
+        border: 1px solid var(--border);
+        background: rgba(11, 18, 38, 0.75);
+        border-radius: var(--radius);
+        padding: 16px;
+        box-shadow: var(--shadow);
+      }
+
+      .card h2 {
+        margin: 0 0 6px;
+        font-size: 16px;
+      }
+
+      .card p {
+        margin: 0;
+        color: var(--muted);
+        font-size: 14px;
+        line-height: 1.5;
+      }
+
       .row {
         display: flex;
-        gap: 12px;
         flex-wrap: wrap;
-        align-items: end;
+        gap: 10px;
+        align-items: center;
+        margin-top: 14px;
       }
+
+      label {
+        display: flex;
+        flex-direction: column;
+        gap: 6px;
+        min-width: 360px;
+      }
+
+      label span {
+        font-size: 12px;
+        color: var(--muted2);
+        letter-spacing: 0.08em;
+        text-transform: uppercase;
+      }
+
+      select,
+      input {
+        appearance: none;
+        padding: 11px 12px;
+        border-radius: 12px;
+        border: 1px solid rgba(255, 255, 255, 0.14);
+        background: rgba(255, 255, 255, 0.04);
+        color: var(--text);
+        outline: none;
+      }
+      select:disabled,
+      input:disabled {
+        opacity: 0.55;
+      }
+
       button {
-        padding: 10px 14px;
-        border-radius: 10px;
-        border: 1px solid #ccc;
-        background: #fff;
+        padding: 11px 14px;
+        border-radius: 12px;
+        border: 1px solid rgba(255, 255, 255, 0.14);
+        background: rgba(255, 255, 255, 0.04);
+        color: var(--text);
         cursor: pointer;
+        transition:
+          transform 120ms ease,
+          background 120ms ease;
       }
-      button.primary {
-        border-color: #164dff;
+
+      button:hover {
+        background: rgba(255, 255, 255, 0.07);
+      }
+      button:active {
+        transform: translateY(1px);
       }
       button:disabled {
         opacity: 0.5;
         cursor: not-allowed;
       }
-      input,
-      select {
-        padding: 10px 12px;
-        border-radius: 10px;
-        border: 1px solid #ccc;
-        min-width: 360px;
+
+      .primary {
+        background: linear-gradient(
+          135deg,
+          rgba(22, 77, 255, 0.95),
+          rgba(159, 57, 238, 0.75)
+        );
+        border-color: rgba(22, 77, 255, 0.45);
       }
-      .muted {
-        color: #666;
-        font-size: 14px;
+
+      .ghost {
+        background: transparent;
       }
-      .log {
-        margin-top: 12px;
-        font-family: ui-monospace, SFMono-Regular, Menlo, monospace;
-        white-space: pre-wrap;
-        background: #fafafa;
-        border: 1px solid #eee;
-        padding: 12px;
-        border-radius: 12px;
+
+      .cta {
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+        gap: 12px;
+        margin-top: 14px;
+        padding: 14px;
+        border-radius: 14px;
+        border: 1px solid rgba(255, 255, 255, 0.12);
+        background: rgba(255, 255, 255, 0.04);
       }
-      .field {
+
+      .cta .meta {
         display: flex;
         flex-direction: column;
-        gap: 6px;
+        gap: 2px;
       }
-      .field label {
+
+      .cta .meta strong {
         font-size: 14px;
-        color: #444;
       }
-      code {
-        font-family: ui-monospace, SFMono-Regular, Menlo, monospace;
+      .cta .meta small {
+        color: var(--muted);
+      }
+
+      .kvs {
+        margin-top: 12px;
+        display: grid;
+        grid-template-columns: 1fr;
+        gap: 10px;
+      }
+
+      .kv {
+        display: flex;
+        justify-content: space-between;
+        gap: 12px;
+        padding: 10px 12px;
+        border-radius: 12px;
+        border: 1px solid rgba(255, 255, 255, 0.1);
+        background: rgba(0, 0, 0, 0.14);
+        font-size: 13px;
+        color: var(--muted);
+      }
+      .kv code {
+        color: var(--text);
+        font-family: var(--mono);
+        font-size: 12px;
+      }
+
+      details {
+        margin-top: 12px;
+        border: 1px solid rgba(255, 255, 255, 0.1);
+        border-radius: 12px;
+        background: rgba(0, 0, 0, 0.14);
+        overflow: hidden;
+      }
+
+      summary {
+        cursor: pointer;
+        padding: 10px 12px;
+        color: var(--muted);
+        font-size: 13px;
+      }
+
+      .log {
+        padding: 12px;
+        border-top: 1px solid rgba(255, 255, 255, 0.1);
+        font-family: var(--mono);
+        white-space: pre-wrap;
+        font-size: 12px;
+        color: rgba(255, 255, 255, 0.8);
+        max-height: 220px;
+        overflow: auto;
+      }
+
+      /* Responsive */
+      @media (max-width: 920px) {
+        .app {
+          grid-template-columns: 1fr;
+          grid-template-rows: 64px auto 1fr;
+          grid-template-areas:
+            "topbar"
+            "sidebar"
+            "main";
+        }
+        .sidebar {
+          border-right: none;
+          border-bottom: 1px solid var(--border);
+        }
+        .grid {
+          grid-template-columns: 1fr;
+        }
+        label {
+          min-width: 100%;
+        }
       }
     </style>
   </head>
 
   <body>
-    <h1>EasyPost Embeddables Demo</h1>
-
-    <div class="card">
-      <div class="row">
-        <div class="field">
-          <label class="muted">Child Users (from Production API key)</label>
-          <select id="childUserSelect" disabled>
-            <option value="">Loading child users…</option>
-          </select>
+    <div class="app">
+      <aside class="sidebar">
+        <div class="brand" style="padding: 6px 8px 10px">
+          <div class="brand-badge"></div>
+          <div>
+            <div style="font-size: 14px">AcmeShip Partner</div>
+            <div style="font-size: 12px; color: var(--muted); margin-top: 2px">
+              Merchant Dashboard
+            </div>
+          </div>
         </div>
 
-        <button id="btnRefreshUsers">Refresh Users</button>
+        <div class="section-title">Shipping</div>
+        <nav class="nav">
+          <a href="#" data-route="dashboard">
+            <span class="icon">🏠</span> Dashboard
+          </a>
+          <a href="#" class="active" data-route="carriers">
+            <span class="icon">🚚</span> Carrier Accounts
+          </a>
+          <a href="#" data-route="billing">
+            <span class="icon">💳</span> Billing
+          </a>
+          <a href="#" data-route="payment-logs">
+            <span class="icon">📄</span> Payment Logs
+          </a>
+          <a href="#" data-route="reports">
+            <span class="icon">📊</span> Reports
+          </a>
+        </nav>
 
-        <button id="btnInit" class="primary" disabled>Initialize SDK</button>
-        <button id="btnTheme" disabled>Toggle Theme</button>
-      </div>
+        <div class="section-title">Settings</div>
+        <nav class="nav">
+          <a href="#" data-route="profile">
+            <span class="icon">👤</span> Profile
+          </a>
+          <a href="#" data-route="security">
+            <span class="icon">🔒</span> Security
+          </a>
+        </nav>
 
-      <div class="row" style="margin-top: 12px">
-        <div class="field">
-          <label class="muted">Manual user_id (optional fallback)</label>
-          <input id="manualUserId" placeholder="e.g. user_123..." />
+        <div class="section-title">Help</div>
+        <nav class="nav">
+          <a href="#" data-route="support">
+            <span class="icon">💬</span> Support
+          </a>
+        </nav>
+      </aside>
+
+      <header class="topbar">
+        <div class="brand">
+          <div style="font-size: 14px">Shipping Settings</div>
+          <div class="pill">
+            <span class="dot" id="sdkDot"></span
+            ><span id="sdkStatus">SDK not initialized</span>
+          </div>
         </div>
 
-        <button id="btnUseManual">Use Manual user_id</button>
-      </div>
+        <div class="top-actions">
+          <div class="pill">
+            <span style="opacity: 0.9">Signed in as</span>
+            <strong style="color: var(--text); font-weight: 650"
+              >Demo Man</strong
+            >
+          </div>
+        </div>
+      </header>
 
-      <p class="muted" style="margin-top: 10px">
-        This demo calls <code>/api/easypost-embeddables/child-users</code> to
-        list child users, then calls
-        <code>/api/easypost-embeddables/session</code> to mint a short-lived
-        <code>session_id</code>.
-      </p>
+      <main class="main">
+        <div class="container">
+          <h1 class="page-title">Carrier Accounts</h1>
+          <p class="subtitle">
+            Connect and manage carrier accounts for each store/team. This page
+            demonstrates an embedded EasyPost-managed carrier settings
+            experience.
+          </p>
 
-      <hr style="border: none; border-top: 1px solid #eee; margin: 16px 0" />
+          <div class="grid">
+            <section class="card">
+              <h2>Account context</h2>
+              <p>
+                Select a store/team (child user). Then initialize the embedded
+                carrier management experience.
+              </p>
 
-      <div class="row">
-        <button id="button-billing" disabled>Manage Billing</button>
-        <button id="button-carriers">Manage Carriers</button>
-        <button id="button-payment-logs" disabled>Payment Logs</button>
-        <button id="button-reports" disabled>Reports</button>
-      </div>
+              <div class="row">
+                <label>
+                  <span>Store / Team</span>
+                  <select id="childUserSelect" disabled>
+                    <option value="">Loading accounts…</option>
+                  </select>
+                </label>
 
-      <div id="log" class="log">Log:</div>
+                <button
+                  id="btnRefreshUsers"
+                  class="ghost"
+                  title="Reload child users"
+                >
+                  Refresh
+                </button>
+                <button id="btnInit" class="primary" disabled>
+                  Initialize
+                </button>
+                <button id="btnTheme" class="ghost" disabled>
+                  Toggle Theme
+                </button>
+              </div>
+
+              <div class="cta">
+                <div class="meta">
+                  <strong>Manage Carrier Accounts</strong>
+                  <small
+                    >Opens the EasyPost-hosted carrier management
+                    component</small
+                  >
+                </div>
+                <button id="button-carriers" class="primary" disabled>
+                  Open Carriers
+                </button>
+              </div>
+
+              <div class="row" style="margin-top: 10px">
+                <button id="button-billing" disabled>Billing</button>
+                <button id="button-payment-logs" disabled>Payment Logs</button>
+                <button id="button-reports" disabled>Reports</button>
+              </div>
+
+              <details>
+                <summary>Debug log</summary>
+                <div id="log" class="log">Log:</div>
+              </details>
+            </section>
+
+            <aside class="card">
+              <h2>Demo details</h2>
+              <p>
+                Use this panel to explain what’s happening to customers during a
+                live demo.
+              </p>
+
+              <div class="kvs">
+                <div class="kv">
+                  <span>Selected child user</span>
+                  <code id="kvSelected">—</code>
+                </div>
+                <div class="kv">
+                  <span>Active (initialized) user</span>
+                  <code id="kvActive">—</code>
+                </div>
+                <div class="kv">
+                  <span>Session mint endpoint</span>
+                  <code>/api/easypost-embeddables/session</code>
+                </div>
+                <div class="kv">
+                  <span>Child users endpoint</span>
+                  <code>/api/easypost-embeddables/child-users</code>
+                </div>
+              </div>
+
+              <div class="cta" style="margin-top: 14px">
+                <div class="meta">
+                  <strong>Tip</strong>
+                  <small>
+                    This experience is securely hosted by EasyPost in a
+                    cross-origin iframe. Your platform controls access + context
+                    (child user selection) and launches the embedded component.
+                  </small>
+                </div>
+              </div>
+            </aside>
+          </div>
+        </div>
+      </main>
     </div>
 
     <!-- Load EasyPost Embeddables -->
@@ -130,10 +584,29 @@
 
     <script>
       // -----------------------------
-      // Logging
+      // Elements
       // -----------------------------
       const logEl = document.getElementById("log");
+      const childUserSelect = document.getElementById("childUserSelect");
+      const btnInit = document.getElementById("btnInit");
+      const btnTheme = document.getElementById("btnTheme");
+      const btnRefreshUsers = document.getElementById("btnRefreshUsers");
+
+      const btnCarriers = document.getElementById("button-carriers");
+      const btnBilling = document.getElementById("button-billing");
+      const btnPaymentLogs = document.getElementById("button-payment-logs");
+      const btnReports = document.getElementById("button-reports");
+
+      const sdkDot = document.getElementById("sdkDot");
+      const sdkStatus = document.getElementById("sdkStatus");
+      const kvSelected = document.getElementById("kvSelected");
+      const kvActive = document.getElementById("kvActive");
+
+      // -----------------------------
+      // Logging
+      // -----------------------------
       const log = (...args) => {
+        if (!logEl) return;
         logEl.textContent +=
           args
             .map((a) =>
@@ -143,88 +616,71 @@
       };
 
       // -----------------------------
-      // State (declare ONCE)
+      // State
       // -----------------------------
       let embeddables = null;
       let dark = false;
 
-      // Selected user_id from dropdown/manual
       let selectedUserId = "";
-
-      // user_id currently bound to the live embeddables instance/session
       let activeUserId = "";
-
-      const childUserSelect = document.getElementById("childUserSelect");
-      const btnInit = document.getElementById("btnInit");
-      const btnTheme = document.getElementById("btnTheme");
 
       // -----------------------------
       // UI helpers
       // -----------------------------
+      const setSdkIndicator = (state) => {
+        // state: "off" | "on" | "error"
+        sdkDot.classList.remove("good", "bad");
+        if (state === "on") {
+          sdkDot.classList.add("good");
+          sdkStatus.textContent = "SDK initialized";
+        } else if (state === "error") {
+          sdkDot.classList.add("bad");
+          sdkStatus.textContent = "SDK error";
+        } else {
+          sdkStatus.textContent = "SDK not initialized";
+        }
+      };
+
       const setButtonsEnabled = (enabled) => {
-        [
-          "button-billing",
-          "button-carriers",
-          "button-payment-logs",
-          "button-reports",
-        ].forEach((id) => {
-          document.getElementById(id).disabled = !enabled;
-        });
+        btnCarriers.disabled = !enabled;
+        btnBilling.disabled = !enabled;
+        btnPaymentLogs.disabled = !enabled;
+        btnReports.disabled = !enabled;
         btnTheme.disabled = !enabled;
       };
 
       const updateInitEnabled = () => {
-        const hasUser = Boolean(selectedUserId);
-        btnInit.disabled = !hasUser;
+        btnInit.disabled = !Boolean(selectedUserId);
+      };
+
+      const syncKv = () => {
+        kvSelected.textContent = selectedUserId || "—";
+        kvActive.textContent = activeUserId || "—";
       };
 
       const resetEmbeddables = () => {
         if (embeddables?.destroy) {
           try {
             embeddables.destroy();
-          } catch (e) {
-            // best-effort teardown
-          }
+          } catch (_) {}
         }
         embeddables = null;
         activeUserId = "";
         setButtonsEnabled(false);
+        setSdkIndicator("off");
         updateInitEnabled();
-        log("🔁 Reset embeddables (user changed). Click Initialize SDK again.");
+        syncKv();
+        log("🔁 Reset embeddables (user changed). Click Initialize.");
       };
 
-      const openComponent = async (type) => {
-        if (!embeddables) {
-          log("ℹ️ Initialize the SDK first.");
-          return;
-        }
-        if (selectedUserId !== activeUserId) {
-          log(
-            "⚠️ User changed. Re-initialize the SDK to load the new child user.",
-          );
-          return;
-        }
-        try {
-          await embeddables.open(type);
-        } catch (e) {
-          log("❌ Failed to open component:", e?.message || String(e));
-        }
-      };
-
-      // -----------------------------
-      // Theme
-      // -----------------------------
       const getAppearance = () => ({
         tokens: dark
           ? {
-              "font.family": "calibri, sans-serif",
-              "color.neutral.000": "#1f2937",
+              "font.family": "Zen Dots",
+              "color.neutral.000": "#0b1020",
               "color.neutral.900": "#ffffff",
             }
-          : {
-              "font.family": "calibri, sans-serif",
-              "color.neutral.000": "#ffffff",
-            },
+          : { "font.family": "Zen Dots", "color.neutral.000": "#ffffff" },
         modalZIndex: "123456",
       });
 
@@ -233,11 +689,11 @@
       // -----------------------------
       const loadChildUsers = async () => {
         childUserSelect.disabled = true;
-        childUserSelect.innerHTML = `<option value="">Loading child users…</option>`;
+        childUserSelect.innerHTML = `<option value="">Loading accounts…</option>`;
 
-        // Clear selection state until a user is chosen
         selectedUserId = "";
         updateInitEnabled();
+        syncKv();
 
         try {
           const resp = await fetch("/api/easypost-embeddables/child-users");
@@ -245,18 +701,18 @@
 
           if (!resp.ok) {
             log("❌ Failed to load child users:", data);
-            childUserSelect.innerHTML = `<option value="">Failed to load users</option>`;
+            childUserSelect.innerHTML = `<option value="">Failed to load accounts</option>`;
             return;
           }
 
           const children = Array.isArray(data?.children) ? data.children : [];
           if (children.length === 0) {
-            childUserSelect.innerHTML = `<option value="">No child users found</option>`;
+            childUserSelect.innerHTML = `<option value="">No accounts found</option>`;
             log("ℹ️ No child users returned for this API key.");
             return;
           }
 
-          childUserSelect.innerHTML = `<option value="">Select a child user…</option>`;
+          childUserSelect.innerHTML = `<option value="">Select an account…</option>`;
           for (const u of children) {
             const label = u.name ? `${u.name} (${u.id})` : u.id;
             const opt = document.createElement("option");
@@ -266,10 +722,10 @@
           }
 
           childUserSelect.disabled = false;
-          log(`✅ Loaded ${children.length} child users.`);
+          log(`✅ Loaded ${children.length} accounts.`);
         } catch (e) {
-          log("❌ Network error loading child users:", String(e));
-          childUserSelect.innerHTML = `<option value="">Failed to load users</option>`;
+          log("❌ Network error loading accounts:", String(e));
+          childUserSelect.innerHTML = `<option value="">Failed to load accounts</option>`;
         }
       };
 
@@ -290,9 +746,9 @@
           });
 
           const data = await response.json();
-
           if (!response.ok) {
             log("❌ Session request failed:", data);
+            setSdkIndicator("error");
             return null;
           }
 
@@ -307,87 +763,128 @@
             "❌ Failed to fetch session ID:",
             error?.message || String(error),
           );
+          setSdkIndicator("error");
           return null;
         }
       };
 
       // -----------------------------
-      // Wire UI
+      // Open helpers
       // -----------------------------
-      document
-        .getElementById("btnRefreshUsers")
-        .addEventListener("click", async () => {
-          await loadChildUsers();
-        });
+      const openComponent = async (type) => {
+        if (!embeddables) {
+          log("ℹ️ Initialize the SDK first.");
+          return;
+        }
+        if (selectedUserId !== activeUserId) {
+          log("⚠️ Account changed. Re-initialize to use the new account.");
+          return;
+        }
+        try {
+          await embeddables.open(type);
+        } catch (e) {
+          log("❌ Failed to open component:", e?.message || String(e));
+        }
+      };
+
+      // -----------------------------
+      // UI events
+      // -----------------------------
+      btnRefreshUsers.addEventListener("click", loadChildUsers);
 
       childUserSelect.addEventListener("change", () => {
         const next = childUserSelect.value || "";
         if (!next) {
           selectedUserId = "";
           updateInitEnabled();
+          syncKv();
           return;
         }
 
-        // If the SDK is already initialized for a different child, reset it.
+        // Switching accounts after init => reset embeddables
         if (embeddables && activeUserId && next !== activeUserId) {
           selectedUserId = next;
-          log("👤 Selected user_id:", selectedUserId);
+          syncKv();
+          log("👤 Selected account:", selectedUserId);
           resetEmbeddables();
           return;
         }
 
         selectedUserId = next;
-        log("👤 Selected user_id:", selectedUserId);
+        log("👤 Selected account:", selectedUserId);
         updateInitEnabled();
+        syncKv();
       });
 
-      document.getElementById("btnUseManual").addEventListener("click", () => {
-        const manual = document.getElementById("manualUserId").value.trim();
-        if (!manual) {
-          log("❌ Manual user_id is empty.");
-          return;
-        }
+      // Sidebar nav (cosmetic)
+      document.querySelectorAll(".nav a").forEach((a) => {
+        a.addEventListener("click", (e) => {
+          e.preventDefault();
+          document
+            .querySelectorAll(".nav a")
+            .forEach((x) => x.classList.remove("active"));
+          a.classList.add("active");
 
-        // If switching away from the currently active user, reset the SDK.
-        if (embeddables && activeUserId && manual !== activeUserId) {
-          selectedUserId = manual;
-          log("👤 Using manual user_id:", selectedUserId);
-          resetEmbeddables();
-          return;
-        }
-
-        selectedUserId = manual;
-        log("👤 Using manual user_id:", selectedUserId);
-        updateInitEnabled();
+          const route = a.getAttribute("data-route");
+          if (route === "carriers") {
+            document.querySelector(".page-title").textContent =
+              "Carrier Accounts";
+            document.querySelector(".subtitle").textContent =
+              "Connect and manage carrier accounts for each store/team. This page demonstrates an embedded EasyPost-managed carrier settings experience.";
+          } else if (route === "billing") {
+            document.querySelector(".page-title").textContent = "Billing";
+            document.querySelector(".subtitle").textContent =
+              "Manage billing settings for the selected account. (Opens embedded billing management.)";
+          } else if (route === "payment-logs") {
+            document.querySelector(".page-title").textContent = "Payment Logs";
+            document.querySelector(".subtitle").textContent =
+              "View payment activity for the selected account. (Opens embedded payment logs.)";
+          } else if (route === "reports") {
+            document.querySelector(".page-title").textContent = "Reports";
+            document.querySelector(".subtitle").textContent =
+              "Access reporting for the selected account. (Opens embedded reporting.)";
+          } else {
+            document.querySelector(".page-title").textContent = "Dashboard";
+            document.querySelector(".subtitle").textContent =
+              "Example partner portal dashboard. Use the navigation to open embedded EasyPost components.";
+          }
+        });
       });
 
       // -----------------------------
-      // EasyPost Embeddables SDK
+      // SDK load
       // -----------------------------
+      setSdkIndicator("off");
+      setButtonsEnabled(false);
+      updateInitEnabled();
+      syncKv();
+
       window.EasyPostEmbeddables = window.EasyPostEmbeddables || {};
       window.EasyPostEmbeddables.onLoad = () => {
         log("EasyPost Embeddables script loaded.");
 
         btnInit.addEventListener("click", async () => {
           if (!selectedUserId) {
-            log("❌ Select a child user first.");
+            log("❌ Select an account first.");
             return;
           }
 
-          // If already initialized for this user, don't re-init.
+          // If already initialized for this account, no-op
           if (embeddables && activeUserId === selectedUserId) {
-            log("ℹ️ SDK already initialized for this user.");
+            log("ℹ️ SDK already initialized for this account.");
             setButtonsEnabled(true);
+            setSdkIndicator("on");
             return;
           }
 
-          // If initialized for another user, reset and continue
+          // If initialized for another account, reset and continue
           if (embeddables && activeUserId && activeUserId !== selectedUserId) {
             resetEmbeddables();
           }
 
           if (!window.EasyPostEmbeddables?.init) {
             log("❌ SDK not available yet.");
+            setSdkIndicator("error");
             return;
           }
 
@@ -403,10 +900,12 @@
           });
 
           activeUserId = selectedUserId;
+          syncKv();
+          setSdkIndicator("on");
+          setButtonsEnabled(true);
+
           log("✅ SDK initialized.");
           log("🔒 Embeddables bound to user_id:", activeUserId);
-
-          setButtonsEnabled(true);
         });
 
         btnTheme.addEventListener("click", async () => {
@@ -419,33 +918,22 @@
           log("🎨 Theme toggled. dark =", dark);
         });
 
-        document
-          .getElementById("button-billing")
-          .addEventListener("click", async () => {
-            await openComponent("manage-billing");
-          });
-        document
-          .getElementById("button-carriers")
-          .addEventListener("click", async () => {
-            await openComponent("manage-carriers");
-          });
-        document
-          .getElementById("button-payment-logs")
-          .addEventListener("click", async () => {
-            await openComponent("manage-payment-logs");
-          });
-        document
-          .getElementById("button-reports")
-          .addEventListener("click", async () => {
-            await openComponent("manage-reports");
-          });
+        // Component buttons
+        btnCarriers.addEventListener("click", async () =>
+          openComponent("manage-carriers"),
+        );
+        btnBilling.addEventListener("click", async () =>
+          openComponent("manage-billing"),
+        );
+        btnPaymentLogs.addEventListener("click", async () =>
+          openComponent("manage-payment-logs"),
+        );
+        btnReports.addEventListener("click", async () =>
+          openComponent("manage-reports"),
+        );
       };
 
-      // -----------------------------
-      // Initial load
-      // -----------------------------
-      setButtonsEnabled(false);
-      updateInitEnabled();
+      // Load accounts immediately
       loadChildUsers();
     </script>
   </body>
