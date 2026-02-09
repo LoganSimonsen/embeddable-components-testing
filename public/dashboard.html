@@ -1,0 +1,84 @@
+<!doctype html>
+<html>
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>Partner Portal Demo — Dashboard</title>
+    <link rel="stylesheet" href="/styles.css" />
+  </head>
+  <body class="app">
+    <div class="layout">
+      <aside class="sidebar">
+        <div class="sidebar-brand">
+          <div class="brand-mark">ACME</div>
+          <div>
+            <div class="brand-title">Partner Portal</div>
+            <div id="activeUserLabel" class="brand-subtitle">Loading…</div>
+          </div>
+        </div>
+
+        <nav class="nav">
+          <button class="nav-item" data-route="carriers">
+            Carrier Accounts
+          </button>
+          <button
+            class="nav-item"
+            data-route="billing"
+            id="navBilling"
+            disabled
+          >
+            Billing
+          </button>
+          <button
+            class="nav-item"
+            data-route="paymentlogs"
+            id="navPaymentLogs"
+            disabled
+          >
+            Payment Logs
+          </button>
+          <button
+            class="nav-item"
+            data-route="reports"
+            id="navReports"
+            disabled
+          >
+            Reports
+          </button>
+        </nav>
+        <div class="pill" id="modePill" hidden>
+          <span class="dot"></span>
+          <span id="modeText">Loading mode…</span>
+        </div>
+        <div class="sidebar-footer">
+          <button id="btnSwitchUser" class="btn btn-secondary" type="button">
+            Switch User
+          </button>
+        </div>
+      </aside>
+
+      <main class="content">
+        <div class="content-header">
+          <h1 id="pageTitle" class="page-title">Loading…</h1>
+          <div class="content-actions">
+            <button id="btnToggleTheme" class="btn btn-secondary" type="button">
+              Toggle Theme
+            </button>
+          </div>
+        </div>
+
+        <div id="pageRoot" class="page-root"></div>
+
+        <pre id="log" class="log log-wide">Log:</pre>
+      </main>
+    </div>
+
+    <!-- EasyPost Embeddables -->
+    <script
+      src="https://embed.easypost.com/embeddables/1.0/client.js"
+      async
+    ></script>
+
+    <script type="module" src="/js/router.js"></script>
+  </body>
+</html>

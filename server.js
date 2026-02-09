@@ -1,201 +1,245 @@
+// server.js (ESM)
+import dotenv from "dotenv";
+dotenv.config();
+
 import express from "express";
 import path from "path";
 import { fileURLToPath } from "url";
 
 const app = express();
 
-app.use(express.json());
+// ---- config ----
+const PORT = Number(process.env.PORT || 5001);
+const EASYPOST_API_KEY = (process.env.EASYPOST_API_KEY || "").trim();
+const ORIGIN_HOST = (process.env.ORIGIN_HOST || "").trim();
 
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
 
-// ---- Config ----
-const EASYPOST_API_KEY = process.env.EASYPOST_API_KEY || "";
-const ORIGIN_HOST = process.env.ORIGIN_HOST || "localhost";
-const PORT = Number(process.env.PORT || 5001);
+// ---- demo fallback data (used if API fails or returns empty) ----
+const DEMO_REFERRAL_CUSTOMERS = [
+  {
+    id: "user_691914eabdf8499e9c29a49303da267a",
+    object: "User",
+    parent_id: null,
+    name: "Demo Shipper #1",
+    phone_number: "8018675309",
+    verified: true,
+    created_at: "2025-09-09T17:19:12Z",
+    default_carbon_offset: false,
+    has_elevate_access: false,
+    balance: "0.00000",
+    price_per_shipment: "0.00000",
+    recharge_amount: null,
+    secondary_recharge_amount: null,
+    recharge_threshold: null,
+    has_billing_method: null,
+    cc_fee_rate: "0.0375",
+    default_insurance_amount: null,
+    insurance_fee_rate: "0.01",
+    insurance_fee_minimum: "1.00",
+    email: "user@user.com",
+    children: [],
+  },
+];
 
-if (!EASYPOST_API_KEY) {
-  console.warn("⚠️  Missing EASYPOST_API_KEY env var.");
+// ---- middleware ----
+app.use(express.json({ limit: "1mb" }));
+app.disable("x-powered-by");
+
+// ---- helper ----
+function requireEnv() {
+  const missing = [];
+  if (!EASYPOST_API_KEY) missing.push("EASYPOST_API_KEY");
+  if (!ORIGIN_HOST) missing.push("ORIGIN_HOST");
+  if (missing.length) {
+    const err = new Error(`Missing required env var(s): ${missing.join(", ")}`);
+    err.status = 500;
+    throw err;
+  }
 }
 
-// Serve static files (expects index.html under ./public)
-app.use(express.static(path.join(__dirname, "public")));
+function isBareHost(host) {
+  return (
+    host && !host.includes("://") && !host.includes("/") && !host.includes(" ")
+  );
+}
 
-// Small helper for consistent error payloads
-function sendError(res, status, code, message, details = undefined) {
-  res.status(status).json({
-    error: {
-      code,
-      message,
-      ...(details ? { details } : {}),
-    },
+async function easypostFetch(url, { method = "GET", body } = {}) {
+  requireEnv();
+
+  if (!isBareHost(ORIGIN_HOST)) {
+    const err = new Error(
+      `Invalid ORIGIN_HOST="${ORIGIN_HOST}". Use bare host only (e.g. "localhost", "example.com").`,
+    );
+    err.status = 500;
+    throw err;
+  }
+
+  const headers = {
+    Accept: "application/json",
+    "Content-Type": "application/json",
+    Authorization:
+      "Basic " + Buffer.from(`${EASYPOST_API_KEY}:`).toString("base64"),
+  };
+
+  const resp = await fetch(url, {
+    method,
+    headers,
+    body: body ? JSON.stringify(body) : undefined,
   });
+
+  const text = await resp.text();
+  let data;
+  try {
+    data = text ? JSON.parse(text) : null;
+  } catch {
+    data = { raw: text };
+  }
+
+  if (!resp.ok) {
+    const msg =
+      data?.error?.message ||
+      data?.message ||
+      `EasyPost request failed (${resp.status})`;
+    const err = new Error(msg);
+    err.status = resp.status;
+    err.easypost = data;
+    throw err;
+  }
+
+  return data;
 }
 
-// ---- EasyPost: Create embeddables session ----
-// Docs: POST https://api.easypost.com/v2/embeddables/session (from your guide)
+// ---- API routes (define BEFORE static + catch-all) ----
+app.get("/api/health", (req, res) => {
+  res.json({
+    ok: true,
+    port: PORT,
+    origin_host: ORIGIN_HOST || null,
+    has_api_key: Boolean(EASYPOST_API_KEY),
+  });
+});
+
 app.post("/api/easypost-embeddables/session", async (req, res) => {
   try {
-    if (!EASYPOST_API_KEY) {
-      return sendError(
-        res,
-        500,
-        "missing_api_key",
-        "EASYPOST_API_KEY is not set",
-      );
-    }
-
-    const { user_id } = req.body || {};
+    requireEnv();
+    const user_id = String(req.body?.user_id || "").trim();
     if (!user_id) {
-      return sendError(
-        res,
-        400,
-        "missing_user_id",
-        "Missing required field: user_id",
-      );
+      return res.status(400).json({ error: { message: "Missing user_id" } });
     }
 
-    const payload = {
-      user_id,
-      origin_host: ORIGIN_HOST,
-    };
-
-    const resp = await fetch(
+    const data = await easypostFetch(
       "https://api.easypost.com/v2/embeddables/session",
       {
         method: "POST",
-        headers: {
-          Authorization:
-            "Basic " + Buffer.from(`${EASYPOST_API_KEY}:`).toString("base64"),
-          "Content-Type": "application/json",
-        },
-        body: JSON.stringify(payload),
+        body: { user_id, origin_host: ORIGIN_HOST },
       },
     );
-
-    const text = await resp.text();
-    let data;
-    try {
-      data = JSON.parse(text);
-    } catch {
-      data = { raw: text };
-    }
-
-    if (!resp.ok) {
-      return sendError(
-        res,
-        resp.status,
-        "easypost_error",
-        "EasyPost embeddables session request failed",
-        data,
-      );
-    }
 
     return res.json(data);
   } catch (err) {
-    console.error("Session endpoint error:", err);
-    return sendError(
-      res,
-      500,
-      "server_error",
-      "Unexpected server error",
-      String(err),
-    );
+    return res.status(Number(err.status || 500)).json({
+      error: { message: err.message, easypost: err.easypost },
+    });
   }
 });
-
-// ---- EasyPost: Retrieve ALL child users ----
-// Docs: GET /v2/users/children with page_size + after_id; response { children: [...], has_more: bool } :contentReference[oaicite:1]{index=1}
-async function fetchAllChildUsers() {
-  const all = [];
-  let after_id = undefined;
-  const page_size = 100;
-
-  for (let i = 0; i < 1000; i++) {
-    const url = new URL("https://api.easypost.com/v2/users/children");
-    url.searchParams.set("page_size", String(page_size));
-    if (after_id) url.searchParams.set("after_id", after_id);
-
-    const resp = await fetch(url.toString(), {
-      method: "GET",
-      headers: {
-        Authorization:
-          "Basic " + Buffer.from(`${EASYPOST_API_KEY}:`).toString("base64"),
-      },
-    });
-
-    const text = await resp.text();
-    let data;
-    try {
-      data = JSON.parse(text);
-    } catch {
-      data = { raw: text };
-    }
-
-    if (!resp.ok) {
-      const error = new Error("EasyPost child-users request failed");
-      error.status = resp.status;
-      error.details = data;
-      throw error;
-    }
-
-    const children = Array.isArray(data?.children) ? data.children : [];
-    all.push(...children);
-
-    if (!data?.has_more || children.length === 0) break;
-
-    // Pagination: use the last returned child's id as after_id :contentReference[oaicite:2]{index=2}
-    after_id = children[children.length - 1]?.id;
-    if (!after_id) break;
-  }
-
-  return all;
-}
 
 app.get("/api/easypost-embeddables/child-users", async (req, res) => {
   try {
-    if (!EASYPOST_API_KEY) {
-      return sendError(
-        res,
-        500,
-        "missing_api_key",
-        "EASYPOST_API_KEY is not set",
-      );
-    }
-
-    const children = await fetchAllChildUsers();
-
-    // Return a trimmed shape for the UI (keep full object server-side if you want)
-    const items = children.map((u) => ({
-      id: u.id,
-      name: u.name || "",
-      created_at: u.created_at || "",
-      verified: u.verified,
-    }));
-
-    return res.json({
-      count: items.length,
-      children: items,
-    });
-  } catch (err) {
-    console.error("Child users endpoint error:", err);
-    const status = err?.status || 500;
-    return sendError(
-      res,
-      status,
-      "easypost_error",
-      "Failed to retrieve child users",
-      err?.details || String(err),
+    const data = await easypostFetch(
+      "https://api.easypost.com/v2/users/children",
     );
+    res.json({ children: data?.children || [] });
+  } catch (err) {
+    return res.status(Number(err.status || 500)).json({
+      error: { message: err.message, easypost: err.easypost },
+    });
   }
 });
 
-// Fallback: serve index.html for root
-app.get("/", (_req, res) => {
+app.get("/api/easypost-embeddables/referral-customers", async (req, res) => {
+  try {
+    const data = await easypostFetch(
+      "https://api.easypost.com/v2/users/referral_customers",
+    );
+    res.json({ referral_customers: data?.referral_customers || [] });
+    console.log("REFERRAL RAW:", JSON.stringify(data, null, 2));
+  } catch (err) {
+    return res.status(Number(err.status || 500)).json({
+      error: { message: err.message, easypost: err.easypost },
+    });
+  }
+});
+
+app.get("/api/easypost-embeddables/users", async (req, res) => {
+  let children = [];
+  let referral_customers = [];
+  const warnings = [];
+
+  // ---- Child users ----
+  try {
+    const childResp = await easypostFetch(
+      "https://api.easypost.com/v2/users/children",
+    );
+    children = childResp?.children || [];
+  } catch (err) {
+    warnings.push({
+      type: "child_users_error",
+      message: err.message,
+    });
+  }
+
+  // ---- Referral customers ----
+  try {
+    const referralResp = await easypostFetch(
+      "https://api.easypost.com/v2/users/referral_customers",
+    );
+
+    referral_customers = referralResp?.referral_customers || [];
+
+    // ✅ fallback if API returns empty but this is a demo
+    if (referral_customers.length === 0) {
+      referral_customers = DEMO_REFERRAL_CUSTOMERS;
+      warnings.push({
+        type: "referral_fallback",
+        message: "Using demo referral customers",
+      });
+    }
+  } catch (err) {
+    referral_customers = DEMO_REFERRAL_CUSTOMERS;
+    warnings.push({
+      type: "referral_fallback",
+      message: "Referral customers API failed; using demo data",
+    });
+  }
+
+  res.json({
+    children,
+    referral_customers,
+    warnings,
+  });
+});
+
+// ---- static site ----
+app.use(express.static(path.join(__dirname, "public")));
+
+// ---- SPA fallback (serves your app for non-api routes) ----
+app.get("*", (req, res) => {
   res.sendFile(path.join(__dirname, "public", "index.html"));
 });
 
-app.listen(PORT, () => {
+// ---- start ----
+const server = app.listen(PORT, () => {
   console.log(`✅ Server listening on http://localhost:${PORT}`);
-  console.log(`   ORIGIN_HOST=${ORIGIN_HOST}`);
+  console.log(`   ORIGIN_HOST=${ORIGIN_HOST || "(missing)"}`);
+});
+
+server.on("error", (err) => {
+  if (err?.code === "EADDRINUSE") {
+    console.error(`❌ Port ${PORT} is already in use.`);
+    process.exit(1);
+  }
+  console.error("❌ Server error:", err);
+  process.exit(1);
 });
