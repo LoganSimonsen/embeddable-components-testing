@@ -3,6 +3,8 @@ import { getState } from "./state.js";
 
 let embeddables = null;
 let boundUserId = "";
+let embeddablesInstanceCounter = 0;
+let currentInstanceId = null;
 
 function truncateSessionId(sessionId = "") {
   const value = String(sessionId || "");
@@ -40,16 +42,35 @@ export async function initEmbeddables() {
   const { activeUserId } = getState();
   if (!activeUserId) throw new Error("No active user selected");
 
+  console.log("[embeddables.init] requested", {
+    timestamp: new Date().toISOString(),
+    activeUserId,
+    boundUserId: boundUserId || null,
+    hasExistingInstance: Boolean(embeddables),
+    currentInstanceId,
+  });
+
   if (!window.EasyPostEmbeddables?.init) {
     throw new Error("EasyPostEmbeddables SDK not loaded yet");
   }
 
   // If already initialized for a different user, destroy first
   if (embeddables && boundUserId && boundUserId !== activeUserId) {
+    console.log("[embeddables.init] destroying stale instance", {
+      timestamp: new Date().toISOString(),
+      currentInstanceId,
+      boundUserId,
+      nextUserId: activeUserId,
+    });
     destroyEmbeddables();
   }
 
   if (embeddables && boundUserId === activeUserId) {
+    console.log("[embeddables.init] reusing existing instance", {
+      timestamp: new Date().toISOString(),
+      currentInstanceId,
+      activeUserId,
+    });
     return embeddables;
   }
 
@@ -68,6 +89,7 @@ export async function initEmbeddables() {
     return session_id;
   };
 
+  currentInstanceId = `emb-${++embeddablesInstanceCounter}`;
   embeddables = window.EasyPostEmbeddables.init({
     fetchSessionId,
     fonts: [
@@ -80,6 +102,11 @@ export async function initEmbeddables() {
   });
 
   boundUserId = activeUserId;
+  console.log("[embeddables.init] created new instance", {
+    timestamp: new Date().toISOString(),
+    currentInstanceId,
+    boundUserId,
+  });
   return embeddables;
 }
 
@@ -90,15 +117,29 @@ export async function updateTheme() {
 
 export function destroyEmbeddables() {
   try {
+    console.log("[embeddables.destroy] destroying instance", {
+      timestamp: new Date().toISOString(),
+      currentInstanceId,
+      boundUserId: boundUserId || null,
+    });
     embeddables?.destroy?.();
   } catch {}
   embeddables = null;
   boundUserId = "";
+  currentInstanceId = null;
 }
 
 export async function openComponent(type) {
   const { activeUserId } = getState();
   if (!activeUserId) throw new Error("No active user selected");
+
+  console.log("[embeddables.open] requested", {
+    timestamp: new Date().toISOString(),
+    type,
+    activeUserId,
+    boundUserId: boundUserId || null,
+    currentInstanceId,
+  });
 
   await initEmbeddables();
 
@@ -107,5 +148,11 @@ export async function openComponent(type) {
     throw new Error("Active user changed; please re-initialize session");
   }
 
+  console.log("[embeddables.open] opening component", {
+    timestamp: new Date().toISOString(),
+    type,
+    activeUserId,
+    currentInstanceId,
+  });
   await embeddables.open(type);
 }
