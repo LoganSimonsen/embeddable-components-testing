@@ -88,6 +88,28 @@ function isBareHost(host) {
   );
 }
 
+function stripPort(host = "") {
+  const value = String(host || "").trim();
+  if (!value) return "";
+
+  if (value.startsWith("[")) {
+    const end = value.indexOf("]");
+    return end >= 0 ? value.slice(1, end) : value;
+  }
+
+  const colonCount = (value.match(/:/g) || []).length;
+  if (colonCount > 1) return value;
+
+  return value.replace(/:\d+$/, "");
+}
+
+function truncateSessionId(sessionId = "") {
+  const value = String(sessionId || "");
+  if (!value) return "(missing)";
+  if (value.length <= 12) return value;
+  return `${value.slice(0, 6)}...${value.slice(-6)}`;
+}
+
 async function easypostFetch(url, { method = "GET", body } = {}) {
   requireEnv();
 
@@ -148,6 +170,33 @@ app.post("/api/easypost-embeddables/session", async (req, res) => {
   try {
     requireEnv();
     const user_id = String(req.body?.user_id || "").trim();
+    const requestHostHeader = String(req.headers.host || "").trim();
+    const requestHostname = stripPort(requestHostHeader);
+
+    console.log(
+      "[embeddables.session.request]",
+      JSON.stringify({
+        timestamp: new Date().toISOString(),
+        request_host: requestHostHeader || null,
+        request_hostname: requestHostname || null,
+        origin_host: ORIGIN_HOST || null,
+        user_id: user_id || null,
+      }),
+    );
+
+    if (requestHostname && ORIGIN_HOST && requestHostname !== ORIGIN_HOST) {
+      console.warn(
+        "[embeddables.session.warning]",
+        JSON.stringify({
+          timestamp: new Date().toISOString(),
+          message: "Request hostname does not match ORIGIN_HOST",
+          request_hostname: requestHostname,
+          origin_host: ORIGIN_HOST,
+          user_id: user_id || null,
+        }),
+      );
+    }
+
     if (!user_id) {
       return res.status(400).json({ error: { message: "Missing user_id" } });
     }
@@ -158,6 +207,16 @@ app.post("/api/easypost-embeddables/session", async (req, res) => {
         method: "POST",
         body: { user_id, origin_host: ORIGIN_HOST },
       },
+    );
+
+    console.log(
+      "[embeddables.session.created]",
+      JSON.stringify({
+        timestamp: new Date().toISOString(),
+        user_id,
+        origin_host: ORIGIN_HOST,
+        session_id: truncateSessionId(data?.session_id),
+      }),
     );
 
     return res.json(data);

@@ -4,6 +4,13 @@ import { getState } from "./state.js";
 let embeddables = null;
 let boundUserId = "";
 
+function truncateSessionId(sessionId = "") {
+  const value = String(sessionId || "");
+  if (!value) return "(missing)";
+  if (value.length <= 12) return value;
+  return `${value.slice(0, 6)}...${value.slice(-6)}`;
+}
+
 export function isReady() {
   return Boolean(embeddables);
 }
@@ -48,7 +55,16 @@ export async function initEmbeddables() {
 
   const fetchSessionId = async () => {
     const { activeUserId: uid } = getState();
+    console.log("[embeddables.fetchSessionId] called", {
+      timestamp: new Date().toISOString(),
+      user_id: uid || null,
+      hostname: window.location.hostname || null,
+    });
     const { session_id } = await apiCreateSession(uid);
+    console.log("[embeddables.fetchSessionId] returned", {
+      timestamp: new Date().toISOString(),
+      session_id: truncateSessionId(session_id),
+    });
     return session_id;
   };
 

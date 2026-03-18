@@ -50,6 +50,13 @@
           <span class="dot"></span>
           <span id="modeText">Loading mode…</span>
         </div>
+        <div class="pill">
+          <span class="dot"></span>
+          <span>
+            Browser hostname:
+            <strong id="browserHostname">Loading…</strong>
+          </span>
+        </div>
         <div class="sidebar-footer">
           <button id="btnSwitchUser" class="btn btn-secondary" type="button">
             Switch User
@@ -80,5 +87,11 @@
     ></script>
 
     <script type="module" src="/js/router.js"></script>
+    <script>
+      const browserHostnameEl = document.getElementById("browserHostname");
+      if (browserHostnameEl) {
+        browserHostnameEl.textContent = window.location.hostname || "(empty)";
+      }
+    </script>
   </body>
 </html>

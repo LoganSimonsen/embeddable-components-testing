@@ -5,6 +5,24 @@
     <meta name="viewport" content="width=device-width, initial-scale=1" />
     <title>Partner Portal Demo — Sign In</title>
     <link rel="stylesheet" href="/styles.css" />
+    <link
+      rel="apple-touch-icon"
+      sizes="180x180"
+      href="./apple-touch-icon.png"
+    />
+    <link
+      rel="icon"
+      type="image/png"
+      sizes="32x32"
+      href="./favicon-32x32.png"
+    />
+    <link
+      rel="icon"
+      type="image/png"
+      sizes="16x16"
+      href="./favicon-16x16.png"
+    />
+    <link rel="manifest" href="/site.webmanifest" />
   </head>
   <body class="app">
     <div class="auth-shell">
@@ -14,6 +32,10 @@
           <div class="brand-title">Partner Portal Demo</div>
           <div class="brand-subtitle">
             Select a user context for this demo session.
+          </div>
+          <div class="help">
+            Browser hostname:
+            <strong id="browserHostname">Loading…</strong>
           </div>
         </div>
 
@@ -58,5 +80,11 @@
     </div>
 
     <script type="module" src="/js/auth.js"></script>
+    <script>
+      const browserHostnameEl = document.getElementById("browserHostname");
+      if (browserHostnameEl) {
+        browserHostnameEl.textContent = window.location.hostname || "(empty)";
+      }
+    </script>
   </body>
 </html>
