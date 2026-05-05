@@ -7,6 +7,7 @@ import path from "path";
 import { fileURLToPath } from "url";
 
 const app = express();
+app.set("trust proxy", true);
 
 // ---- config ----
 const PORT = Number(process.env.PORT || 5001);
@@ -71,12 +72,27 @@ app.use(express.json({ limit: "1mb" }));
 app.disable("x-powered-by");
 
 // ---- helper ----
-function requireEnv() {
+function requireApiKey() {
   const missing = [];
   if (!EASYPOST_API_KEY) missing.push("EASYPOST_API_KEY");
-  if (!ORIGIN_HOST) missing.push("ORIGIN_HOST");
   if (missing.length) {
     const err = new Error(`Missing required env var(s): ${missing.join(", ")}`);
+    err.status = 500;
+    throw err;
+  }
+}
+
+function requireOriginHost() {
+  if (!ORIGIN_HOST) {
+    const err = new Error("Missing required env var(s): ORIGIN_HOST");
+    err.status = 500;
+    throw err;
+  }
+
+  if (!isBareHost(ORIGIN_HOST)) {
+    const err = new Error(
+      `Invalid ORIGIN_HOST="${ORIGIN_HOST}". Use bare host only (e.g. "localhost", "example.com").`,
+    );
     err.status = 500;
     throw err;
   }
@@ -110,16 +126,24 @@ function truncateSessionId(sessionId = "") {
   return `${value.slice(0, 6)}...${value.slice(-6)}`;
 }
 
-async function easypostFetch(url, { method = "GET", body } = {}) {
-  requireEnv();
+function getBaseUrl(req) {
+  const forwardedProto = String(req.headers["x-forwarded-proto"] || "")
+    .split(",")[0]
+    .trim();
+  const protocol = forwardedProto || req.protocol || "https";
+  const host = String(req.headers.host || "").trim();
 
-  if (!isBareHost(ORIGIN_HOST)) {
-    const err = new Error(
-      `Invalid ORIGIN_HOST="${ORIGIN_HOST}". Use bare host only (e.g. "localhost", "example.com").`,
-    );
+  if (!host) {
+    const err = new Error("Missing request host header");
     err.status = 500;
     throw err;
   }
+
+  return `${protocol}://${host}`;
+}
+
+async function easypostFetch(url, { method = "GET", body } = {}) {
+  requireApiKey();
 
   const headers = {
     Accept: "application/json",
@@ -168,7 +192,8 @@ app.get("/api/health", (req, res) => {
 
 app.post("/api/easypost-embeddables/session", async (req, res) => {
   try {
-    requireEnv();
+    requireApiKey();
+    requireOriginHost();
     const user_id = String(req.body?.user_id || "").trim();
     const requestHostHeader = String(req.headers.host || "").trim();
     const requestHostname = stripPort(requestHostHeader);
@@ -216,6 +241,86 @@ app.post("/api/easypost-embeddables/session", async (req, res) => {
         user_id,
         origin_host: ORIGIN_HOST,
         session_id: truncateSessionId(data?.session_id),
+      }),
+    );
+
+    return res.json(data);
+  } catch (err) {
+    return res.status(Number(err.status || 500)).json({
+      error: { message: err.message, easypost: err.easypost },
+    });
+  }
+});
+
+app.post("/api/customer-portals/account-link", async (req, res) => {
+  try {
+    requireApiKey();
+
+    const session_type = String(req.body?.session_type || "").trim();
+    const user_id = String(req.body?.user_id || "").trim();
+    const target = String(req.body?.target || "").trim();
+    const fields =
+      req.body?.fields && typeof req.body.fields === "object"
+        ? req.body.fields
+        : {};
+
+    if (!user_id) {
+      return res.status(400).json({ error: { message: "Missing user_id" } });
+    }
+
+    if (
+      session_type !== "account_onboarding" &&
+      session_type !== "account_management"
+    ) {
+      return res.status(400).json({
+        error: {
+          message:
+            "Invalid session_type. Use account_onboarding or account_management.",
+        },
+      });
+    }
+
+    const baseUrl = getBaseUrl(req);
+    const refreshUrl = `${baseUrl}/dashboard.html#customerportals?portal=refresh`;
+    const returnUrl = `${baseUrl}/dashboard.html#customerportals?portal=return`;
+
+    const metadata =
+      session_type === "account_onboarding"
+        ? {
+            fields: Object.fromEntries(
+              Object.entries(fields).filter(([, value]) =>
+                String(value || "").trim(),
+              ),
+            ),
+          }
+        : {
+            target: target || "account_settings",
+          };
+
+    const body = {
+      session_type,
+      user_id,
+      refresh_url: refreshUrl,
+      return_url: returnUrl,
+      metadata,
+    };
+
+    const data = await easypostFetch(
+      "https://api.easypost.com/v2/customer_portal/account_link",
+      {
+        method: "POST",
+        body,
+      },
+    );
+
+    console.log(
+      "[customer_portal.account_link.created]",
+      JSON.stringify({
+        timestamp: new Date().toISOString(),
+        user_id,
+        session_type,
+        target: metadata?.target || null,
+        expires_at: data?.expires_at || null,
       }),
     );
 

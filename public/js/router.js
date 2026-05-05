@@ -7,6 +7,7 @@ import {
 } from "./embeddables.js";
 
 import { mount as mountCarriers } from "./pages/carriers.js";
+import { mount as mountCustomerPortals } from "./pages/customerportals.js";
 import { mount as mountBilling } from "./pages/billing.js";
 import { mount as mountPaymentLogs } from "./pages/paymentlogs.js";
 import { mount as mountReports } from "./pages/reports.js";
@@ -36,6 +37,10 @@ const routes = {
     mount: mountCarriers,
     component: "manage-carriers",
   },
+  customerportals: {
+    title: "Customer Portals",
+    mount: mountCustomerPortals,
+  },
   billing: {
     title: "Billing",
     mount: mountBilling,
@@ -54,6 +59,11 @@ const routes = {
 };
 
 let currentUnmount = null;
+
+function getRouteFromHash() {
+  const hash = location.hash || "#carriers";
+  return hash.slice(1).split("?")[0] || "carriers";
+}
 
 function setActiveNav(route) {
   document.querySelectorAll(".nav-item").forEach((btn) => {
@@ -145,13 +155,13 @@ function ensureSession() {
 }
 
 window.addEventListener("hashchange", async () => {
-  const key = (location.hash || "#carriers").slice(1);
+  const key = getRouteFromHash();
   await render(key);
 });
 
 wireNav();
 
 if (ensureSession()) {
-  const initial = (location.hash || "#carriers").slice(1);
+  const initial = getRouteFromHash();
   render(initial).catch((e) => log("❌ Render error:", e.message));
 }

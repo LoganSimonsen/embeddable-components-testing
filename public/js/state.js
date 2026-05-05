@@ -6,6 +6,7 @@ let state = {
   mode: "centralized", // centralized | decentralized
   allowed: {
     carriers: true,
+    customerportals: true,
     billing: false,
     paymentlogs: false,
     reports: false,
@@ -38,6 +39,7 @@ export function clearState() {
     mode: "centralized",
     allowed: {
       carriers: true,
+      customerportals: true,
       billing: false,
       paymentlogs: false,
       reports: false,
@@ -56,6 +58,7 @@ export function computeAllowed(mode) {
   const decentralized = mode === "decentralized";
   return {
     carriers: true,
+    customerportals: true,
     billing: decentralized,
     paymentlogs: decentralized,
     reports: decentralized,

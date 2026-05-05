@@ -26,3 +26,20 @@ export async function apiCreateSession(user_id) {
     throw new Error(data?.error?.message || "Failed to create session");
   return data; // expects { session_id: "..." }
 }
+
+export async function apiCreateCustomerPortalLink(payload) {
+  const resp = await fetch("/api/customer-portals/account-link", {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify(payload),
+  });
+
+  const data = await resp.json().catch(() => ({}));
+  if (!resp.ok) {
+    throw new Error(
+      data?.error?.message || "Failed to create customer portal link",
+    );
+  }
+
+  return data;
+}

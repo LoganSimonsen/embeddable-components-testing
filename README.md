@@ -1,8 +1,8 @@
 # EasyPost Embeddables Demo
 
-This repository contains a minimal demo application showing how to integrate **EasyPost Embeddable Components** into a third-party web application.
+This repository contains a minimal demo application showing how to integrate **EasyPost Embeddable Components** and **Customer Portals** into a third-party web application.
 
-The demo allows integrators to launch EasyPost-hosted management UI (Billing, Carriers, Payment Logs, Reports) from their own app using the EasyPost Embeddables SDK.
+The demo allows integrators to launch EasyPost-hosted management UI (Billing, Carriers, Payment Logs, Reports) from their own app using the EasyPost Embeddables SDK, and also generate one-time Customer Portal links for sub-account onboarding and account management.
 
 ---
 
@@ -11,6 +11,7 @@ The demo allows integrators to launch EasyPost-hosted management UI (Billing, Ca
 - Fetching a short-lived embeddable `session_id` from EasyPost
 - Initializing the EasyPost Embeddables SDK
 - Launching embeddable components in response to user actions
+- Creating short-lived Customer Portal account links
 - Applying basic theming via `appearance.tokens`
 - Handling a real-world full-screen iframe embeddables experience
 
@@ -31,6 +32,10 @@ Server (Node / Express)
 └── /api/easypost-embeddables/session
 
 └── Calls EasyPost EmbeddableSessions API
+
+└── /api/customer-portals/account-link
+
+└── Calls EasyPost Customer Portal Account Link API
 
 ---
 
@@ -88,8 +93,13 @@ http://localhost:5001
   - Manage Carriers
   - Payment Logs (only works with decentralized forge accounts)
   - Reports (only works with decentralized forge accounts)
+- Open the `Customer Portals` screen to:
+  - Create an `account_onboarding` session with optional prefilled fields
+  - Create an `account_management` session targeting a specific portal section
 
 Each embeddable launches inside an EasyPost-hosted iframe.
+
+Customer Portals open in a new browser tab because their session URLs are one-time use and short-lived.
 
 🎨 Theming Notes
 Basic theming is applied using appearance.tokens
