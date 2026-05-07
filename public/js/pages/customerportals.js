@@ -2,7 +2,7 @@ import { apiCreateCustomerPortalLink } from "../api.js";
 import { getState } from "../state.js";
 
 const MANAGEMENT_TARGETS = [
-  "account_settings",
+  "account-settings",
   "wallet",
   "carriers",
   "reports",

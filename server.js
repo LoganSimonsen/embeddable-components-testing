@@ -294,7 +294,7 @@ app.post("/api/customer-portals/account-link", async (req, res) => {
             ),
           }
         : {
-            target: target || "account_settings",
+            target: target || "account-settings",
           };
 
     const body = {
